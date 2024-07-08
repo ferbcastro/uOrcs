@@ -1,9 +1,9 @@
 #include "branch_predictor.hpp"
 
-const uint8_t kNumBitsGbhr = 8;
-const uint16_t kSizeArrayGShare = 1024;
-const uint16_t kSizeArrayBimodal = 1024;
-const uint16_t kSizeArraySelector = 1024;
+const uint8_t kNumBitsGbhr = 15;
+const uint16_t kSizeArrayGShare = 32768;
+const uint16_t kSizeArrayBimodal = 32768;
+const uint16_t kSizeArraySelector = 32768;
 
 // =============================================================================
 combined_predictor_t::combined_predictor_t() {
@@ -16,19 +16,21 @@ combined_predictor_t::combined_predictor_t() {
 
     for (it = 0; it < kNumBitsGbhr; it++)
         glob_branch_hist_reg[it] = 0;
+    // Initializes branches as taken
+    // Bimodal predictor is selected
     for (it = 0; it < kSizeArraySelector; it++) {
-        bimodal_counter_table[it].LSB = 0;
-        bimodal_counter_table[it].MSB = 0;
-        gshare_counter_table[it].LSB = 0;
-        gshare_counter_table[it].MSB = 0;
-        selector_counter_table[it].LSB = 1;
+        bimodal_counter_table[it].LSB = 1;
+        bimodal_counter_table[it].MSB = 1;
+        gshare_counter_table[it].LSB = 1;
+        gshare_counter_table[it].MSB = 1;
+        selector_counter_table[it].LSB = 0;
         selector_counter_table[it].MSB = 0;
     }
 }
 
 // =============================================================================
 combined_predictor_t::~combined_predictor_t() {
-    delete glob_branch_hist_reg;
+    delete[] glob_branch_hist_reg;
     delete[] gshare_counter_table;
     delete[] bimodal_counter_table;
     delete[] selector_counter_table;
@@ -62,8 +64,9 @@ void combined_predictor_t::make_prediction(uint64_t op_address) {
 bool combined_predictor_t::gshare_preditor(uint16_t entry) {
     uint16_t gbhr(0);
 
+    // Transforms gbhr, stored in string form, to a 16-bit integer
     for (uint8_t it = 0; it < kNumBitsGbhr; it++) 
-        gbhr |= (glob_branch_hist_reg[it] << it);        
+        gbhr |= (glob_branch_hist_reg[it] << it);
     entry ^= gbhr;
 
     return gshare_counter_table[entry].MSB;
@@ -75,6 +78,7 @@ bool combined_predictor_t::bimodal_predictor(uint16_t entry) {
 }
 
 // =============================================================================
+// 00 -> 01, 01 -> 10, 10 -> 11, 11 -> No action
 void combined_predictor_t::increment_predictor(type_predictor_t used_predictor, 
                                                uint64_t op_address) {
     uint16_t gbhr(0);
@@ -118,6 +122,7 @@ void combined_predictor_t::increment_predictor(type_predictor_t used_predictor,
 }
 
 // =============================================================================
+// 11 -> 10, 10 -> 01, 01 -> 00, 00 -> No action
 void combined_predictor_t::decrement_predictor(type_predictor_t used_predictor, 
                                                uint64_t op_address) {
     uint16_t gbhr(0);
@@ -162,6 +167,7 @@ void combined_predictor_t::decrement_predictor(type_predictor_t used_predictor,
 }
 
 // =============================================================================
+// Same logic implemented in increment_predictor
 void combined_predictor_t::increment_selector(uint64_t op_address) {
     uint16_t entry = return_entry(op_address);
 
@@ -180,6 +186,7 @@ void combined_predictor_t::increment_selector(uint64_t op_address) {
 }
 
 // =============================================================================
+// Same logic implemented in decrement_selector
 void combined_predictor_t::decrement_selector(uint64_t op_address) {
     uint16_t entry = return_entry(op_address);
 
@@ -198,6 +205,7 @@ void combined_predictor_t::decrement_selector(uint64_t op_address) {
 }
 
 // =============================================================================
+// gbhr is shifted to the left and lsb receives branch status
 void combined_predictor_t::update_gbhr(char has_jumped) {
     for (uint8_t it = kNumBitsGbhr - 1; it > 0; it--) 
         glob_branch_hist_reg[it] = glob_branch_hist_reg[it - 1]; 
@@ -206,6 +214,7 @@ void combined_predictor_t::update_gbhr(char has_jumped) {
 }
 
 // =============================================================================
+// 15 least significant bits form the entry
 uint16_t combined_predictor_t::return_entry(uint64_t op_address) {
-    return static_cast<uint16_t>(op_address & 0x3ff);
+    return static_cast<uint16_t>(op_address & 0x7fff);
 }

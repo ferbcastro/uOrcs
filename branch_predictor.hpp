@@ -26,9 +26,11 @@ class combined_predictor_t {
     ~combined_predictor_t();
     void choose_predictor(uint64_t op_address);
     void make_prediction(uint64_t op_address);
-    void increment_predictor(type_predictor_t used_predictor, uint64_t op_address); // no increment if 3
-    void decrement_predictor(type_predictor_t used_predictor, uint64_t op_address); // no decrement if 0
+    // no increment if 3
+    void increment_predictor(type_predictor_t used_predictor, uint64_t op_address);
     void increment_selector(uint64_t op_address);
+    // no decrement if 0
+    void decrement_predictor(type_predictor_t used_predictor, uint64_t op_address);
     void decrement_selector(uint64_t op_address);
     void update_gbhr(char has_jumped);
 

@@ -29,6 +29,7 @@ bool btb_t::has_last_cond_branch_jumped(uint64_t current_instruction_address) {
 
 // =============================================================================
 uint16_t btb_t::return_entry(uint64_t instruction_address) {
+    // Ten least significant bits of the address form the entry
     return static_cast<uint16_t>(instruction_address & 0x3ff);
 } 
 
